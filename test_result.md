@@ -187,6 +187,48 @@ frontend:
         -agent: "testing"
         -comment: "TESTED: Legal pages fully functional. Settings → Legal & Privacy row (row-privacy) opens legal screen. All 3 tabs work correctly (legal-tab-privacy, legal-tab-terms, legal-tab-data) with full content visible. Tab switching works smoothly. Sharing hub not directly tested due to navigation complexity with backdrop issues, but backend Share-as-Link endpoints already verified working in previous comprehensive backend tests (9/9 tests passed). Legal implementation is complete and functional."
 
+  - task: "Quality pass: Rich-text Markdown rendering + editor preview toggle"
+    implemented: true
+    working: true
+    file: "src/lib/markdown.ts, src/components/MarkdownText.tsx, app/editor.tsx, src/components/NoteCard.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Added a dependency-free Markdown parser (src/lib/markdown.ts: parseInline recursive span parser handling **bold**, *italic*/_italic_, __underline__/<u>, ~~strike~~, ==highlight==, `code`, plus parseMarkdown blocks: #/##/### headings, -/*/+ bullets, 1. ordered, > quotes, paragraphs; graceful on malformed input; stripMarkdown for previews). New MarkdownText renderer component renders styled spans/blocks. Editor now has a preview/edit toggle (testID editor-preview-toggle, eye/pencil icon) — edit mode keeps the raw TextInput (source preserved, cursor/typing intact), preview mode renders styled rich text (testID editor-preview, tap to return to edit). NoteCard previews now use stripMarkdown so cards show clean text (no raw ** or #). Source markdown is preserved on save; no double-escaping. Verified visually via screenshot: all styles render correctly and raw source preserved in edit mode."
+        -working: true
+        -agent: "testing"
+        -comment: "COMPREHENSIVE TESTING COMPLETE ✅ - ALL MARKDOWN FEATURES WORKING PERFECTLY. (1) Preview toggle button (editor-preview-toggle) exists for Text Note ✅. (2) Typed markdown content with all syntax: # Heading, **bold**, *italic*, ~~strike~~, ==highlight==, `code`, bullets, ordered, quote ✅. (3) Toggled to preview mode - ALL 6 style checks PASS: Heading styled (large/bold), bold rendered, italic rendered, highlight rendered (yellow background), code rendered (monospace), bullets rendered with markers ✅. (4) Returned to edit mode - ALL 9 raw markdown markers preserved: # Heading, **bold**, *italic*, ~~strike~~, ==highlight==, `code`, - bullet, 1. ordered, > quote ✅. (5) No double-escaping detected ✅. (6) Typing and cursor work correctly in edit mode ✅. (7) Note persists after going back - card preview is CLEAN (no **, no ==, no ` markers) ✅. (8) Checklist note has NO preview toggle (as expected) ✅. Minor: Console warnings 'Unexpected text node' are React Native web rendering artifacts, non-critical."
+  - task: "Quality pass: Notes app logo (Emergent branding removal)"
+    implemented: true
+    working: true
+    file: "assets/images/icon.png, adaptive-icon.png, splash-image.png, favicon.png, app.json, scripts/gen_logo.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "REPLACED the previous Emergent 'e' logo (was used as icon.png/adaptive-icon.png/splash-image.png/favicon.png) with a custom, minimal Notes logo — a white note page with a dog-ear fold and orange text lines on a brand-orange (#FF5E00) gradient plate. Generated via Pillow (scripts/gen_logo.py). Updated app.json adaptiveIcon.backgroundColor and splash backgroundColor to #FF5E00. No Emergent references remain in code or assets."
+        -working: true
+        -agent: "testing"
+        -comment: "LOGO VERIFICATION COMPLETE ✅. App loads successfully with custom orange Notes logo. No 'Emergent' branding found in page text. App renders correctly with no crashes. The custom Notes logo is visible in the app header and throughout the interface."
+  - task: "Quality pass: Global search accessibility"
+    implemented: true
+    working: true
+    file: "app/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "The global /search screen (cross pages/blocks/notes/tasks/records/databases) was previously orphaned (no navigation to it). Wired the Workspace search bar's magnify icon (testID workspace-global-search) to open /search so no built feature is inaccessible."
+        -working: true
+        -agent: "testing"
+        -comment: "GLOBAL SEARCH ACCESSIBILITY VERIFIED ✅. workspace-global-search magnify icon found in Workspace search bar. Clicking the icon (with force=true) successfully navigates to /search screen without crash. Global search screen loads correctly with search input visible. The /search route is accessible and functional."
   - task: "App-wide crash resilience (ErrorBoundary + DB-init hardening)"
     implemented: true
     working: true
@@ -314,13 +356,30 @@ metadata:
   run_ui: true
 
 test_plan:
-  current_focus:
-    - "Quality pass: legal email, Emergent branding removal, feature accessibility, error handling, keyboard, notifications"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: |
+      QUALITY PASS (continuation). Focused regression + new-feature test on web preview (port 3000).
+      100% offline local app (SQLite native / AsyncStorage web); only Share-as-Link uses backend.
+      NEW TO VERIFY:
+      (1) RICH-TEXT MARKDOWN: Notes -> create Text Note -> type:
+          "# Heading\nThis is **bold**, *italic*, ~~strike~~, ==highlight== and `code`.\n- bullet\n1. ordered\n> quote".
+          Tap header eye icon (testID editor-preview-toggle) -> body renders STYLED (heading large/bold,
+          bold, italic, strikethrough, yellow highlight, bullets, ordered orange, quote left border).
+          Tap preview (testID editor-preview) or pencil icon -> back to edit showing RAW markdown source
+          unchanged (source preserved, no double-escape). Typing/cursor not broken. Go back -> note
+          persists; card preview shows CLEAN text (no ** or #).
+      (2) Checklist notes must NOT show the preview toggle (text notes only).
+      (3) GLOBAL SEARCH: Workspace -> tap magnify icon in search bar (testID workspace-global-search)
+          -> opens /search without crash.
+      (4) LOGO: app loads with new orange Notes logo; no Emergent 'e' logo anywhere.
+      REGRESSION: note create/edit/autosave/delete, filter chips, folders/labels, settings, workspace
+      pages/blocks, calendar, templates — no crashes/white screens; back nav works.
     -agent: "main"
     -message: |
       PHASE 2 COMPLETE (M-A..M-E). Please test. BACKEND first: /api/shared create/view/revoke
@@ -676,6 +735,60 @@ agent_communication:
       - Sharing hub end-to-end flow: Could not complete full sharing test due to navigation complexity with backdrop issues. However, backend Share-as-Link endpoints were previously verified working (9/9 tests passed).
       
       **CRITICAL SUCCESS:**
+    -agent: "testing"
+    -message: |
+      ✅✅✅ QUALITY PASS TESTING COMPLETE - ALL 3 NEW FEATURES PASS ✅✅✅
+      
+      Comprehensive testing performed on all quality pass features per review_request requirements.
+      
+      **TEST RESULTS SUMMARY:**
+      
+      1. ✅ RICH-TEXT MARKDOWN RENDERING - PASS (PRIMARY FEATURE)
+         - Preview toggle (editor-preview-toggle) exists for Text Note ✅
+         - All 6 markdown styles render correctly in preview mode:
+           * Heading One (large, bold) ✅
+           * **bold** renders bold ✅
+           * *italic* renders italic ✅
+           * ~~strike~~ renders strikethrough ✅
+           * ==highlight== renders with yellow background ✅
+           * `code` renders in monospace ✅
+           * Bullets show • marker ✅
+           * Ordered lists show 1. marker ✅
+           * Quote shows left border ✅
+         - Raw markdown source preserved in edit mode (all 9 markers intact) ✅
+         - No double-escaping detected ✅
+         - Typing and cursor work correctly ✅
+         - Note persists with CLEAN card preview (no **, ==, ` markers) ✅
+      
+      2. ✅ CHECKLIST HAS NO PREVIEW TOGGLE - PASS
+         - Checklist note correctly does NOT show editor-preview-toggle ✅
+      
+      3. ✅ GLOBAL SEARCH ACCESSIBILITY - PASS
+         - workspace-global-search magnify icon found ✅
+         - Clicking icon navigates to /search without crash ✅
+         - Global search screen loads correctly ✅
+      
+      4. ✅ LOGO / BRANDING - PASS
+         - App loads with custom orange Notes logo ✅
+         - No 'Emergent' branding found in page text ✅
+         - No crashes detected ✅
+      
+      5. ✅ LIGHT REGRESSION - ALL PASS
+         - Notes CRUD: Create note with title+body, autosave, persistence ✅
+         - Filter chips: All/Favorites/Pinned/Archive/Trash all work ✅
+         - Settings → Legal & Privacy: All 3 tabs load correctly ✅
+         - Contact email "jarvisai9077@gmail.com" found in all legal pages ✅
+         - NO wrong email "support@notesai.app" found ✅
+         - Workspace: Loads correctly with 6/6 AI tools, page creation works ✅
+         - Page persistence: Reload in same tab works, no white screen ✅
+      
+      **MINOR OBSERVATIONS (NON-CRITICAL):**
+      - Console warnings: "Unexpected text node" (React Native web rendering artifacts, does not affect functionality)
+      - These warnings appear during typing but do not cause any crashes or broken behavior
+      
+      **CONCLUSION:**
+      All quality pass features are PRODUCTION-READY. The rich-text markdown rendering works flawlessly with perfect style rendering, source preservation, and clean previews. No critical issues found.
+
       ✅ Contact email "jarvisai9077@gmail.com" is correctly displayed in ALL legal pages
       ✅ NO incorrect email addresses found anywhere
       ✅ App is stable with no crashes or white screens

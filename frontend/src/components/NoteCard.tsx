@@ -13,6 +13,7 @@ import { useTheme } from "../context/AppContext";
 import { NoteListItem } from "../db/types";
 import { noteColorHex } from "../theme/colors";
 import { fileExists } from "../lib/files";
+import { stripMarkdown } from "../lib/markdown";
 
 interface NoteCardProps {
   note: NoteListItem;
@@ -58,7 +59,7 @@ export function NoteCard({
     .filter(Boolean)
     .slice(0, 3);
 
-  const preview = note.content.replace(/\n+/g, " ").trim();
+  const preview = stripMarkdown(note.content).replace(/\n+/g, " ").trim();
 
   return (
     <AnimatedPressable

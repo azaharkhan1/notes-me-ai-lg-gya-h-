@@ -251,7 +251,9 @@ export default function WorkspaceHome() {
       {mode === "tree" && (
         <View style={styles.searchWrap}>
           <View style={[styles.searchBar, { backgroundColor: c.surfaceTertiary, borderColor: c.border }]}>
-            <MaterialCommunityIcons name="magnify" size={20} color={c.muted} />
+            <Pressable testID="workspace-global-search" onPress={() => router.push("/search")} hitSlop={8}>
+              <MaterialCommunityIcons name="magnify" size={20} color={c.muted} />
+            </Pressable>
             <TextInput
               testID="workspace-search"
               value={rawSearch}

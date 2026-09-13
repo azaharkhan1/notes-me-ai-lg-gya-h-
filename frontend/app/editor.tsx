@@ -34,6 +34,7 @@ import { ColorPickerSheet, FolderPickerSheet } from "@/src/components/Pickers";
 import { LabelPickerSheet } from "@/src/components/LabelPickerSheet";
 import { VoiceRecorderSheet } from "@/src/components/VoiceRecorderSheet";
 import { AudioPlayer } from "@/src/components/AudioPlayer";
+import { MarkdownText } from "@/src/components/MarkdownText";
 import { noteColorHex } from "@/src/theme/colors";
 import {
   addAttachment,
@@ -119,6 +120,7 @@ export default function Editor() {
   const [imageMenuVisible, setImageMenuVisible] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const shareCardRef = useRef<View>(null);
 
   const noteIdRef = useRef<string | null>(null);
@@ -500,6 +502,19 @@ export default function Editor() {
           <Pressable testID="editor-pin" onPress={togglePin} style={styles.hBtn}>
             <MaterialCommunityIcons name={isPinned ? "pin" : "pin-outline"} size={22} color={isPinned ? c.brand : c.onSurface} />
           </Pressable>
+          {type !== "checklist" && (
+            <Pressable
+              testID="editor-preview-toggle"
+              onPress={() => setPreviewMode((p) => !p)}
+              style={styles.hBtn}
+            >
+              <MaterialCommunityIcons
+                name={previewMode ? "pencil-outline" : "eye-outline"}
+                size={22}
+                color={previewMode ? c.brand : c.onSurface}
+              />
+            </Pressable>
+          )}
           <Pressable testID="editor-menu" onPress={() => setMenuVisible(true)} style={styles.hBtn}>
             <MaterialCommunityIcons name="dots-vertical" size={22} color={c.onSurface} />
           </Pressable>
@@ -579,6 +594,18 @@ export default function Editor() {
               <Text style={[styles.addItemText, { color: c.brand }]}>Add item</Text>
             </Pressable>
           </View>
+        ) : previewMode ? (
+          <Pressable
+            testID="editor-preview"
+            onPress={() => setPreviewMode(false)}
+            style={styles.previewWrap}
+          >
+            {content.trim() ? (
+              <MarkdownText content={content} baseColor={c.onSurface} />
+            ) : (
+              <Text style={[styles.body, { color: c.muted }]}>Nothing to preview yet. Tap to edit.</Text>
+            )}
+          </Pressable>
         ) : (
           <TextInput
             testID="editor-body"
@@ -844,6 +871,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "800", padding: 0, marginBottom: 4 },
   meta: { fontSize: 12, marginBottom: 16 },
   body: { fontSize: 16, lineHeight: 24, padding: 0, minHeight: 200 },
+  previewWrap: { minHeight: 200, paddingVertical: 2 },
   checklist: { marginTop: 4 },
   progressTrack: { height: 4, borderRadius: 2, overflow: "hidden", marginBottom: 16 },
   progressFill: { height: 4, borderRadius: 2 },
