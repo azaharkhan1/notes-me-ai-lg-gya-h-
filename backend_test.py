@@ -10,7 +10,7 @@ import json
 from typing import Dict, Any, Optional
 
 # Base URL from environment (external ingress)
-BASE_URL = "https://1b326056-7d53-4eb4-846e-387acfbc61b0.preview.emergentagent.com"
+BASE_URL = "https://app-runner-135.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 # Test results tracking

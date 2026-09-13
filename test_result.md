@@ -127,7 +127,7 @@ backend:
         -comment: "Added POST /api/shared (returns token, manage_token, public url), GET /api/shared/{token} (renders branded read-only HTML), DELETE /api/shared/{token}?key=manage_token (revoke). Stored in Mongo shared_pages. Also recreated missing backend/.env (MONGO_URL, DB_NAME) and frontend/.env (proxy + EXPO_PUBLIC_BACKEND_URL) which were absent and crashing backend. Verified via curl: create->200 w/ url, GET->branded HTML, revoke->200, GET after revoke->404."
         -working: true
         -agent: "testing"
-        -comment: "COMPREHENSIVE BACKEND TESTING COMPLETED - ALL 9 TESTS PASS ✅. Created backend_test.py and tested all scenarios: (1) GET /api/ sanity check returns Hello World ✅, (2) POST /api/shared with test data returns token/manage_token/url ✅, (3) GET /api/shared/{token} returns HTML with title 'Test Note', branding 'Made with Notes AI', and rendered bullet content ✅, (4) DELETE /api/shared/{token}?key={manage_token} revokes link successfully ✅, (5) GET /api/shared/{token} after revoke returns 404 with unavailable message ✅, (6a) DELETE with wrong key returns 403 ✅, (6b) DELETE non-existent token returns 404 ✅, (6c) POST with empty body {} creates usable link with default title 'Shared note' ✅, (7) MongoDB persistence verified - documents stored and retrieved correctly ✅. Backend is production-ready. External URL tested: https://1b326056-7d53-4eb4-846e-387acfbc61b0.preview.emergentagent.com/api"
+        -comment: "COMPREHENSIVE BACKEND TESTING COMPLETED - ALL 9 TESTS PASS ✅. Created backend_test.py and tested all scenarios: (1) GET /api/ sanity check returns Hello World ✅, (2) POST /api/shared with test data returns token/manage_token/url ✅, (3) GET /api/shared/{token} returns HTML with title 'Test Note', branding 'Made with Notes AI', and rendered bullet content ✅, (4) DELETE /api/shared/{token}?key={manage_token} revokes link successfully ✅, (5) GET /api/shared/{token} after revoke returns 404 with unavailable message ✅, (6a) DELETE with wrong key returns 403 ✅, (6b) DELETE non-existent token returns 404 ✅, (6c) POST with empty body {} creates usable link with default title 'Shared note' ✅, (7) MongoDB persistence verified - documents stored and retrieved correctly ✅. Backend is production-ready. External URL tested: https://app-runner-135.preview.emergentagent.com/api"
 
 frontend:
   - task: "M-A: LocalIntelligenceEngine core + Smart Search + Ask My Notes (offline, model-free)"
@@ -412,7 +412,7 @@ agent_communication:
       8. ✅ POST with empty body {} - creates usable link with default title "Shared note"
       9. ✅ MongoDB persistence - documents stored and retrieved correctly
       
-      External URL tested: https://1b326056-7d53-4eb4-846e-387acfbc61b0.preview.emergentagent.com/api
+      External URL tested: https://app-runner-135.preview.emergentagent.com/api
       
       Backend is production-ready. This is the ONLY backend feature in Phase 2 (rest of app is 100% offline/local).
       
