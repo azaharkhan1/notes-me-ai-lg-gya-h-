@@ -5,7 +5,8 @@ import { useTheme } from "../context/AppContext";
 import { Block, InlineStyle, parseMarkdown, Span } from "../lib/markdown";
 
 interface MarkdownTextProps {
-  content: string;
+  content?: string;
+  blocks?: Block[];
   baseColor?: string;
   baseFontSize?: number;
 }
@@ -59,17 +60,20 @@ function renderSpans(
  * Renders markdown source as styled rich text. Read-only: the source string is
  * never mutated. Safe on malformed input (unmatched markers render literally).
  */
-export function MarkdownText({ content, baseColor, baseFontSize = 16 }: MarkdownTextProps) {
+export function MarkdownText({ content, blocks: blocksProp, baseColor, baseFontSize = 16 }: MarkdownTextProps) {
   const c = useTheme();
   const color = baseColor ?? c.onSurface;
   const highlightBg = c.mode === "dark" ? "#5C4A12" : "#FFE9A8";
   const codeBg = c.surfaceTertiary;
 
+  // Read-only derived view. If pre-parsed blocks are supplied they are used
+  // as-is; otherwise we parse the source string. Either way the source is
+  // NEVER mutated here — this renderer only reads.
   let blocks: Block[] = [];
   try {
-    blocks = parseMarkdown(content);
+    blocks = blocksProp ?? parseMarkdown(content ?? "");
   } catch {
-    return <Text style={{ color, fontSize: baseFontSize }}>{content}</Text>;
+    return <Text style={{ color, fontSize: baseFontSize }}>{content ?? ""}</Text>;
   }
 
   const headingSize = (lvl?: number) =>

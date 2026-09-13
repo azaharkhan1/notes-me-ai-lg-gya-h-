@@ -39,6 +39,7 @@ export function BottomSheet({ visible, onClose, title, children, testID }: Sheet
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        automaticOffset
         style={styles.kav}
         pointerEvents="box-none"
       >

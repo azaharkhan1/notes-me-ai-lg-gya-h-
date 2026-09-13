@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -35,6 +35,7 @@ import { LabelPickerSheet } from "@/src/components/LabelPickerSheet";
 import { VoiceRecorderSheet } from "@/src/components/VoiceRecorderSheet";
 import { AudioPlayer } from "@/src/components/AudioPlayer";
 import { MarkdownText } from "@/src/components/MarkdownText";
+import { parseMarkdown } from "@/src/lib/markdown";
 import { noteColorHex } from "@/src/theme/colors";
 import {
   addAttachment,
@@ -87,6 +88,9 @@ export default function Editor() {
   const navigation = useNavigation();
   const toast = useToast();
   const insets = useSafeAreaInsets();
+  // Keep the caret clear of the sticky formatting toolbar which sits above the
+  // keyboard. Toolbar = paddingTop(10) + button row(~44) + bottom padding.
+  const toolbarHeight = 10 + 44 + (insets.bottom > 0 ? insets.bottom : 8);
   const params = useLocalSearchParams<{ id?: string; type?: string; action?: string }>();
 
   const [noteId, setNoteId] = useState<string | null>(null);
@@ -122,6 +126,11 @@ export default function Editor() {
   const [sharing, setSharing] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const shareCardRef = useRef<View>(null);
+
+  // `content` is the SINGLE SOURCE OF TRUTH: the raw Markdown the user typed and
+  // the ONLY value persisted to storage. `parsedPreview` is a derived, read-only
+  // representation for Preview mode and must NEVER be written back to `content`.
+  const parsedPreview = useMemo(() => parseMarkdown(content), [content]);
 
   const noteIdRef = useRef<string | null>(null);
   const titleRef = useRef("");
@@ -524,8 +533,10 @@ export default function Editor() {
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.content, { paddingBottom: 140 }]}
-        bottomOffset={70}
+        bottomOffset={toolbarHeight}
+        extraKeyboardSpace={0}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
         showsVerticalScrollIndicator={false}
       >
         <TextInput
@@ -601,7 +612,7 @@ export default function Editor() {
             style={styles.previewWrap}
           >
             {content.trim() ? (
-              <MarkdownText content={content} baseColor={c.onSurface} />
+              <MarkdownText blocks={parsedPreview} baseColor={c.onSurface} />
             ) : (
               <Text style={[styles.body, { color: c.muted }]}>Nothing to preview yet. Tap to edit.</Text>
             )}

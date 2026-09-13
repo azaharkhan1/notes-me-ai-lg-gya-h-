@@ -385,6 +385,24 @@ test_plan:
   test_priority: "high_first"
 
 agent_communication:
+    -agent: "main"
+    -message: |
+      KEYBOARD ROOT-CAUSE FIX (round 2, after troubleshoot_agent RCA). Real cause of Android editor
+      jumping/flicker/hidden-content/focus-loss = CONFIG conflict: with Expo edge-to-edge, Android
+      defaulted to adjustPan which fights react-native-keyboard-controller's JS inset handling. Changes:
+      (1) app.json android.softwareKeyboardLayoutMode="resize" (required for keyboard-controller +
+          edge-to-edge). Applies in a real dev/production build (Publish->generate build), NOT Expo Go.
+      (2) Upgraded react-native-keyboard-controller 1.18.5 -> 1.22.5 (ClippingScrollView + mode="insets").
+      (3) Sheet.tsx KeyboardAvoidingView now has automaticOffset (correct tracking inside RN Modal on Android).
+      (4) Editor bottomOffset now dynamic (toolbarHeight from insets) so caret clears the sticky toolbar.
+      MARKDOWN: traced BOTH storage paths (native SQLite repo.ts + web repo.web.ts) — parameterized writes,
+      no triggers/FTS/normalization, plain TEXT column; source NOT transformed on any platform. Made it
+      explicit: `content` = single persisted source of truth; derived `parsedPreview` (useMemo) feeds the
+      read-only renderer and never writes back.
+      PLEASE TEST (web; device-only keyboard behavior can't be exercised here): editor typing/cursor +
+      markdown nested render + preview<->edit source byte-identical + reload/reopen identical + clean card
+      preview; sheets open & inputs typeable & close; regression (CRUD, filters, legal email, workspace
+      persistence, global search); no crashes.
     -agent: "testing"
     -message: |
       ✅✅✅ COMPREHENSIVE TESTING COMPLETE - BOTH REPORTED ISSUES FIXED ✅✅✅
