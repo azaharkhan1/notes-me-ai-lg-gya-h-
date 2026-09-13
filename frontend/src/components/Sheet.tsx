@@ -1,12 +1,14 @@
 import React from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../context/AppContext";
@@ -35,29 +37,36 @@ export function BottomSheet({ visible, onClose, title, children, testID }: Sheet
         onPress={onClose}
         testID="sheet-backdrop"
       />
-      <View
-        testID={testID}
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: c.surfaceSecondary,
-            paddingBottom: insets.bottom + 12,
-            borderColor: c.border,
-          },
-        ]}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.kav}
+        pointerEvents="box-none"
       >
-        <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
-        {title ? (
-          <Text style={[styles.title, { color: c.onSurface }]}>{title}</Text>
-        ) : null}
-        <ScrollView
-          bounces={false}
-          keyboardShouldPersistTaps="handled"
-          style={{ maxHeight: 460 }}
+        <View
+          testID={testID}
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: c.surfaceSecondary,
+              paddingBottom: insets.bottom + 12,
+              borderColor: c.border,
+            },
+          ]}
         >
-          {children}
-        </ScrollView>
-      </View>
+          <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
+          {title ? (
+            <Text style={[styles.title, { color: c.onSurface }]}>{title}</Text>
+          ) : null}
+          <ScrollView
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="none"
+            style={{ maxHeight: 460 }}
+          >
+            {children}
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -121,11 +130,9 @@ export function ConfirmSheet({
 
 const styles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, zIndex: 0 },
+  kav: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end", zIndex: 1 },
   sheet: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    width: "100%",
     zIndex: 1,
     elevation: 24,
     borderTopLeftRadius: 24,

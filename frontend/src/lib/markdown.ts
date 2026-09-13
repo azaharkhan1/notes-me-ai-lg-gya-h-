@@ -70,8 +70,21 @@ export function parseInline(text: string, base: InlineStyle = {}): Span[] {
     const i = text.indexOf(d.open);
     if (i === -1) continue;
     const closeStart = i + d.open.length;
-    const j = text.indexOf(d.close, closeStart);
+    let j = text.indexOf(d.close, closeStart);
     if (j === -1 || j === closeStart) continue; // no close or empty content
+    // Triple-run handling for * / _ : in a sequence like `**bold *italic***`
+    // the trailing `***` is [italic-close][bold-close]. A naive indexOf would
+    // grab the first two stars and swallow the italic closer. Shift the outer
+    // close one char right so the nested single-char emphasis keeps its marker.
+    const ch = d.open[0];
+    if (
+      d.open.length === 2 &&
+      (ch === "*" || ch === "_") &&
+      text[j + 2] === ch &&
+      text[j - 1] !== ch
+    ) {
+      j = j + 1;
+    }
     if (best === null || i < best.index) best = { index: i, close: j, d };
   }
 
@@ -163,8 +176,15 @@ export function stripMarkdown(source: string): string {
   out = out.replace(/^(\s*)[-*+]\s+/gm, "");
   // inline markers
   out = out.replace(/<\/?u>/g, "");
-  out = out.replace(/(\*\*|__|~~|==)(.*?)\1/g, "$2");
+  // paired markers — iterate so NESTED spans (e.g. **bold ~~strike~~**) fully collapse
+  for (let i = 0; i < 4; i++) {
+    out = out.replace(/(\*\*|__|~~|==)([\s\S]*?)\1/g, "$2");
+  }
   out = out.replace(/`([^`]+)`/g, "$1");
-  out = out.replace(/(\*|_)(.*?)\1/g, "$2");
+  for (let i = 0; i < 4; i++) {
+    out = out.replace(/(\*|_)([\s\S]*?)\1/g, "$2");
+  }
+  // strip any leftover unmatched double-char markers so previews stay clean
+  out = out.replace(/\*\*|__|~~|==/g, "");
   return out;
 }
