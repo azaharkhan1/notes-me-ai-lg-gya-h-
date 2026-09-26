@@ -32,6 +32,10 @@ import { totalAttachmentBytes, readAnyFile } from "@/src/lib/files";
 import { exportNotes, ExportFormat } from "@/src/lib/exporter";
 import { NoteColorKey, noteSwatchHex } from "@/src/theme/colors";
 import { Intelligence } from "@/src/intelligence/engine";
+import {
+  reminderPermissionStatus,
+  requestReminderPermission,
+} from "@/src/lib/reminders";
 
 function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -68,6 +72,7 @@ export default function Settings() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState<"granted" | "denied" | "unsupported">("unsupported");
 
   const rebuildIndex = async () => {
     setRebuilding(true);
@@ -76,14 +81,29 @@ export default function Settings() {
     toast.show(res ? `Search index rebuilt (${res.count} items)` : "Rebuilt search index", "success");
   };
 
-  const loadStats = useCallback(() => {
-    (async () => {
+  const loadStats = useCallback(async () => {
+    try {
       const s = await getStats();
       const bytes = await totalAttachmentBytes();
       setStats({ ...s, bytes });
-    })();
+    } catch (error) {
+      console.warn("[settings] stats load failed", error);
+      setStats({ noteCount: 0, attachmentCount: 0, bytes: 0 });
+      toast.show("Couldn't load storage details", "error");
+    }
+  }, [toast]);
+  const loadNotificationStatus = useCallback(async () => {
+    try {
+      setNotificationStatus(await reminderPermissionStatus());
+    } catch (error) {
+      console.warn("[settings] notification status failed", error);
+      setNotificationStatus("denied");
+    }
   }, []);
-  useFocusEffect(loadStats);
+  useFocusEffect(useCallback(() => {
+    void loadStats();
+    void loadNotificationStatus();
+  }, [loadStats, loadNotificationStatus]));
 
   const toggleBiometric = async (val: boolean) => {
     if (val) {
@@ -96,6 +116,24 @@ export default function Settings() {
     }
     setSetting("biometricEnabled", val);
     toast.show(val ? "App lock enabled" : "App lock disabled", "success");
+  };
+
+  const enableNotifications = async () => {
+    try {
+      const status = await requestReminderPermission();
+      setNotificationStatus(status);
+      toast.show(
+        status === "granted"
+          ? "Task notifications enabled"
+          : status === "unsupported"
+            ? "Notifications are available on Android/iOS devices"
+            : "Notifications are disabled in system settings",
+        status === "granted" ? "success" : "info",
+      );
+    } catch (error) {
+      console.warn("[settings] notification permission failed", error);
+      toast.show("Couldn't enable notifications", "error");
+    }
   };
 
   const doBackup = async () => {
@@ -238,6 +276,20 @@ export default function Settings() {
             right={<Switch testID="switch-biometric" value={settings.biometricEnabled} onValueChange={toggleBiometric} trackColor={{ true: c.brand }} thumbColor="#fff" />} />
         </View>
         <Text style={[styles.hint, { color: c.muted }]}>Uses your device fingerprint or face unlock. No PIN or password is stored.</Text>
+
+        {/* Reminders */}
+        <Section title="Reminders" c={c} />
+        <View style={[styles.card, { backgroundColor: c.surfaceSecondary, borderColor: c.border }]}>
+          <Row
+            icon="bell-outline"
+            label="Task notifications"
+            c={c}
+            testID="row-notifications"
+            onPress={enableNotifications}
+            right={<Text style={[styles.valueText, { color: notificationStatus === "granted" ? c.success : c.muted }]}>{notificationStatus === "granted" ? "Enabled" : notificationStatus === "unsupported" ? "Device only" : "Enable"}</Text>}
+          />
+        </View>
+        <Text style={[styles.hint, { color: c.muted }]}>Reminders are scheduled locally on this device and can appear while Notes is closed. No account or network is required.</Text>
 
         {/* Backup & Restore */}
         <Section title="Backup & Restore" c={c} />

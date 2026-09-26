@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "notesai",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.notesai.mobile",
@@ -23,7 +22,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FF5E00"
       },
-      "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.notesai.mobile",
       "permissions": [
@@ -74,7 +72,14 @@
           "resizeMode": "contain",
           "backgroundColor": "#FF5E00"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      "expo-sharing",
+      "expo-status-bar",
+      "expo-web-browser",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

@@ -3,12 +3,15 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import {
+  KeyboardAwareScrollView,
+  KeyboardAvoidingView,
+} from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../context/AppContext";
@@ -24,6 +27,8 @@ interface SheetProps {
 export function BottomSheet({ visible, onClose, title, children, testID }: SheetProps) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const maxSheetHeight = Math.min(620, Math.max(320, height * 0.82));
   return (
     <Modal
       visible={visible}
@@ -40,6 +45,7 @@ export function BottomSheet({ visible, onClose, title, children, testID }: Sheet
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         automaticOffset
+        keyboardVerticalOffset={insets.bottom}
         style={styles.kav}
         pointerEvents="box-none"
       >
@@ -49,8 +55,9 @@ export function BottomSheet({ visible, onClose, title, children, testID }: Sheet
             styles.sheet,
             {
               backgroundColor: c.surfaceSecondary,
-              paddingBottom: insets.bottom + 12,
+              paddingBottom: Math.max(insets.bottom, 12),
               borderColor: c.border,
+              maxHeight: maxSheetHeight,
             },
           ]}
         >
@@ -58,14 +65,17 @@ export function BottomSheet({ visible, onClose, title, children, testID }: Sheet
           {title ? (
             <Text style={[styles.title, { color: c.onSurface }]}>{title}</Text>
           ) : null}
-          <ScrollView
-            bounces={false}
+          <KeyboardAwareScrollView
+            mode="insets"
+            bottomOffset={insets.bottom + 20}
+            extraKeyboardSpace={8}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="none"
-            style={{ maxHeight: 460 }}
+            keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.sheetContent}
           >
             {children}
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -130,8 +140,8 @@ export function ConfirmSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, zIndex: 0 },
-  kav: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end", zIndex: 1 },
+  backdrop: { ...StyleSheet.absoluteFill, zIndex: 0 },
+  kav: { ...StyleSheet.absoluteFill, justifyContent: "flex-end", zIndex: 1 },
   sheet: {
     width: "100%",
     zIndex: 1,
@@ -142,6 +152,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  sheetContent: { paddingBottom: 8, flexGrow: 1 },
   handle: {
     width: 40,
     height: 4,

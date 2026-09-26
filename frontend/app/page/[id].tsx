@@ -612,7 +612,7 @@ export default function PageEditor() {
           {comments.map((cm) => (
             <View key={cm.id} style={[styles.commentRow, { borderColor: c.border, backgroundColor: c.surfaceSecondary, opacity: cm.resolved ? 0.55 : 1 }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.commentText, { color: c.onSurface }, cm.resolved && { textDecorationLine: "line-through" }]}>{cm.text}</Text>
+                <Text style={[styles.commentText, { color: c.onSurface }, cm.resolved ? { textDecorationLine: "line-through" } : null]}>{cm.text}</Text>
                 <Text style={[styles.commentMeta, { color: c.muted }]}>{new Date(cm.createdAt).toLocaleDateString()}</Text>
               </View>
               <Pressable testID={`cmt-resolve-${cm.id}`} onPress={async () => { await updateComment(cm.id, { resolved: cm.resolved ? 0 : 1 }); setComments(await listPageComments(pageId)); }} hitSlop={6}>

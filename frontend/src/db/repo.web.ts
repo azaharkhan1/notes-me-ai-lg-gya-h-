@@ -44,7 +44,7 @@ async function load(): Promise<DBShape> {
   loadPromise = (async () => {
     const raw = await storage.getItem<any>(KEY, null);
     cache = raw && typeof raw === "object" ? { ...empty(), ...raw } : empty();
-    return cache;
+    return cache as DBShape;
   })();
   return loadPromise;
 }

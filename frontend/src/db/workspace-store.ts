@@ -43,7 +43,7 @@ async function load(): Promise<WorkspaceDoc> {
   loadP = (async () => {
     const raw = await kvGet<any>(KEY, null);
     cache = raw && typeof raw === "object" ? { ...empty(), ...raw } : empty();
-    return cache;
+    return cache as WorkspaceDoc;
   })();
   return loadP;
 }

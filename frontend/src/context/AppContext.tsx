@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { useColorScheme } from "react-native";
+import { InteractionManager, useColorScheme } from "react-native";
 
 import { getDb } from "../db/database";
 import { purgeOldTrash } from "../db/repo";
@@ -78,11 +78,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.warn("[AppContext] settings load failed", e);
       }
-      try {
-        await purgeOldTrash();
-      } catch {
-        // ignore
-      }
+      InteractionManager.runAfterInteractions(() => {
+        void purgeOldTrash().catch((error) => {
+          console.warn("[AppContext] trash cleanup failed", error);
+        });
+      });
       // Always mark ready so the UI never hangs on the splash screen.
       setReady(true);
     })();
@@ -92,7 +92,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     <K extends keyof Settings>(key: K, value: Settings[K]) => {
       setSettings((prev) => {
         const next = { ...prev, [key]: value };
-        storage.setItem(SETTINGS_KEY, next);
+        void storage.setItem(SETTINGS_KEY, next).catch((error) => {
+          console.warn("[AppContext] settings save failed", error);
+        });
         return next;
       });
     },

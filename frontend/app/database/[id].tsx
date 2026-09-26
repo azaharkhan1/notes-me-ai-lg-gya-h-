@@ -222,10 +222,10 @@ export default function DatabaseScreen() {
         {editRec && (
           <View>
             {props.map((prop) => (
-              <RecordField key={prop.id} c={c} prop={prop} rec={editRec} value={editRec.values?.[prop.id]} display={displayValue(editRec, prop)} onSet={(v) => setValue(editRec, prop, v)} onEnsureOption={async (name) => {
+              <RecordField key={prop.id} c={c} prop={prop} rec={editRec} value={editRec.values?.[prop.id]} display={displayValue(editRec, prop)} onSet={(v: unknown) => setValue(editRec, prop, v)} onEnsureOption={async (name: string) => {
                 const opts = prop.config?.options ?? [];
                 if (!opts.find((o) => o.name === name)) { await updateProperty(prop.id, { config: { ...prop.config, options: [...opts, { id: genId("opt"), name, color: "gray" }] } }); load(); }
-              }} allDbs={allDbs} allRecordsByDb={allRecordsByDb} recTitleOf={(r) => { const tp = props.find((x) => x.type === "title") || null; return tp ? String(r.values?.[tp.id] ?? "Untitled") : "Untitled"; }} />
+              }} allDbs={allDbs} allRecordsByDb={allRecordsByDb} recTitleOf={(r: DBRecord) => { const tp = props.find((x) => x.type === "title") || null; return tp ? String(r.values?.[tp.id] ?? "Untitled") : "Untitled"; }} />
             ))}
             <View style={styles.recActions}>
               <Pressable testID="rec-open-page" onPress={() => openAsPage(editRec)} style={[styles.recAction, { backgroundColor: c.surfaceTertiary }]}><MaterialCommunityIcons name="open-in-new" size={18} color={c.onSurface} /><Text style={[styles.recActionText, { color: c.onSurface }]}>Open as page</Text></Pressable>

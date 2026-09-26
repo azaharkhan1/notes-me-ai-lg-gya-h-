@@ -26,7 +26,7 @@ import {
   updateTask,
 } from "@/src/db/workspace-store";
 import { Task, TaskPriority, TaskStatus } from "@/src/db/workspace-types";
-import { scheduleReminder, reminderSupported } from "@/src/lib/reminders";
+import { cancelReminder, reminderSupported, syncTaskReminder } from "@/src/lib/reminders";
 
 type Mode = "month" | "week" | "day" | "agenda";
 const PRIORITY_COLORS: Record<TaskPriority, string> = { low: "#3B82F6", medium: "#F59E0B", high: "#F97316", urgent: "#EF4444" };
@@ -44,9 +44,15 @@ export default function Calendar() {
   const [draftTitle, setDraftTitle] = useState("");
 
   const load = useCallback(async () => {
-    setTasks(await listTasks());
-  }, []);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+    try {
+      setTasks(await listTasks());
+    } catch (error) {
+      console.warn("[calendar] load failed", error);
+      setTasks([]);
+      toast.show("Couldn't load your tasks", "error");
+    }
+  }, [toast]);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const tasksByDay = useMemo(() => {
     const m = new Map<string, Task[]>();
@@ -80,37 +86,66 @@ export default function Calendar() {
     const title = draftTitle.trim() || "Untitled task";
     try {
       if (editor.id) {
-        await updateTask(editor.id, { title, status: editor.status, priority: editor.priority, dueDate: editor.dueDate, time: editor.time });
+        await updateTask(editor.id, {
+          title,
+          status: editor.status,
+          priority: editor.priority,
+          dueDate: editor.dueDate,
+          time: editor.time,
+        });
+        const reminder = await syncTaskReminder({ ...editor, title }, true);
+        await updateTask(editor.id, reminder);
         toast.show("Task saved", "success");
       } else {
-        const t = await createTask({ title, status: editor.status, priority: editor.priority, dueDate: editor.dueDate, time: editor.time });
-        let reminderMsg = "";
-        if (t.dueDate && reminderSupported()) {
-          const when = new Date(`${t.dueDate}T${t.time ?? "09:00"}:00`);
-          if (when.getTime() > Date.now()) {
-            const nid = await scheduleReminder("Task due", title, when);
-            if (nid) {
-              await updateTask(t.id, { reminderAt: when.toISOString(), notificationId: nid });
-              reminderMsg = " \u2022 reminder set";
-            } else {
-              reminderMsg = " \u2022 enable notifications for reminders";
-            }
-          }
-        }
+        const task = await createTask({
+          title,
+          status: editor.status,
+          priority: editor.priority,
+          dueDate: editor.dueDate,
+          time: editor.time,
+        });
+        const reminder = await syncTaskReminder(task, true);
+        await updateTask(task.id, reminder);
+        const reminderMsg = reminder.notificationId
+          ? " • reminder set"
+          : reminderSupported() && task.dueDate
+            ? " • enable notifications or check the date/time"
+            : "";
         toast.show(`Task saved${reminderMsg}`, "success");
       }
       setEditor(null);
-      load();
-    } catch (e) {
-      console.warn("[calendar] saveTask failed", e);
+      await load();
+    } catch (error) {
+      console.warn("[calendar] saveTask failed", error);
       toast.show("Couldn't save task. Please try again.", "error");
     }
   };
 
   const cycleStatus = async (t: Task) => {
     const next: TaskStatus = t.status === "todo" ? "inprogress" : t.status === "inprogress" ? "done" : "todo";
-    await updateTask(t.id, { status: next });
-    load();
+    try {
+      await updateTask(t.id, { status: next });
+      const reminder = next === "done"
+        ? { reminderAt: null, notificationId: null }
+        : await syncTaskReminder({ ...t, status: next }, false);
+      await updateTask(t.id, reminder);
+      await load();
+    } catch (error) {
+      console.warn("[calendar] status update failed", error);
+      toast.show("Couldn't update task", "error");
+    }
+  };
+
+  const removeTask = async (t: Task) => {
+    try {
+      await cancelReminder(t.notificationId);
+      await deleteTask(t.id);
+      await load();
+      toast.show("Task deleted", "success");
+    } catch (error) {
+      console.warn("[calendar] delete failed", error);
+      toast.show("Couldn't delete task", "error");
+    }
   };
 
   const dayTasks = (d: Date) => tasksByDay.get(format(d, "yyyy-MM-dd")) ?? [];
@@ -172,13 +207,13 @@ export default function Calendar() {
               })}
             </View>
             <Text style={[styles.agendaHeader, { color: c.muted }]}>{format(selected, "EEEE, MMM d").toUpperCase()}</Text>
-            {dayTasks(selected).length === 0 ? <Text style={[styles.empty, { color: c.muted }]}>No tasks. Tap + to add.</Text> : dayTasks(selected).map((t) => <TaskRow key={t.id} t={t} c={c} onToggle={() => cycleStatus(t)} onOpen={() => { setEditor(t); setDraftTitle(t.title); }} onDelete={async () => { await deleteTask(t.id); load(); }} />)}
+            {dayTasks(selected).length === 0 ? <Text style={[styles.empty, { color: c.muted }]}>No tasks. Tap + to add.</Text> : dayTasks(selected).map((t) => <TaskRow key={t.id} t={t} c={c} onToggle={() => cycleStatus(t)} onOpen={() => { setEditor(t); setDraftTitle(t.title); }} onDelete={() => removeTask(t)} />)}
           </View>
         )}
         {mode !== "month" && (
           <View style={{ padding: 16 }}>
             <Text style={[styles.agendaHeader, { color: c.muted }]}>{mode === "day" ? format(selected, "EEEE, MMM d").toUpperCase() : mode === "week" ? "THIS WEEK" : "ALL UPCOMING"}</Text>
-            {agendaTasks.length === 0 ? <Text style={[styles.empty, { color: c.muted }]}>No tasks.</Text> : agendaTasks.map((t) => <TaskRow key={t.id} t={t} c={c} showDate onToggle={() => cycleStatus(t)} onOpen={() => { setEditor(t); setDraftTitle(t.title); }} onDelete={async () => { await deleteTask(t.id); load(); }} />)}
+            {agendaTasks.length === 0 ? <Text style={[styles.empty, { color: c.muted }]}>No tasks.</Text> : agendaTasks.map((t) => <TaskRow key={t.id} t={t} c={c} showDate onToggle={() => cycleStatus(t)} onOpen={() => { setEditor(t); setDraftTitle(t.title); }} onDelete={() => removeTask(t)} />)}
           </View>
         )}
       </ScrollView>
@@ -189,6 +224,8 @@ export default function Calendar() {
             <TextInput testID="task-title" value={draftTitle} onChangeText={setDraftTitle} placeholder="Task title" placeholderTextColor={c.muted} style={[styles.input, { color: c.onSurface, borderColor: c.border }]} autoFocus />
             <Text style={[styles.fieldLabel, { color: c.muted }]}>DATE</Text>
             <TextInput testID="task-date" value={editor.dueDate ?? ""} onChangeText={(v) => setEditor({ ...editor, dueDate: v })} placeholder="yyyy-mm-dd" placeholderTextColor={c.muted} style={[styles.input, { color: c.onSurface, borderColor: c.border }]} />
+            <Text style={[styles.fieldLabel, { color: c.muted }]}>TIME (24-HOUR)</Text>
+            <TextInput testID="task-time" value={editor.time ?? ""} onChangeText={(v) => setEditor({ ...editor, time: v })} placeholder="HH:mm (default 09:00)" placeholderTextColor={c.muted} style={[styles.input, { color: c.onSurface, borderColor: c.border }]} keyboardType="numbers-and-punctuation" returnKeyType="next" />
             <Text style={[styles.fieldLabel, { color: c.muted }]}>PRIORITY</Text>
             <View style={styles.optionRow}>
               {(["low", "medium", "high", "urgent"] as TaskPriority[]).map((p) => (
@@ -215,7 +252,7 @@ export default function Calendar() {
   );
 }
 
-function TaskRow({ t, c, onToggle, onOpen, onDelete, showDate }: any) {
+function TaskRow({ t, c, onToggle, onOpen, onDelete, showDate }: { t: Task; c: any; onToggle: () => void; onOpen: () => void; onDelete: () => void; showDate?: boolean }) {
   const icon = t.status === "done" ? "checkbox-marked-circle" : t.status === "inprogress" ? "progress-clock" : "checkbox-blank-circle-outline";
   return (
     <View style={[styles.taskRow, { borderColor: c.border, backgroundColor: c.surfaceSecondary }]}>

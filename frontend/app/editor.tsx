@@ -912,7 +912,7 @@ const styles = StyleSheet.create({
   shareCheckText: { flex: 1, fontSize: 16, lineHeight: 22 },
   shareFooter: { fontSize: 12, marginTop: 20 },
   sharingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.25)",

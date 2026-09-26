@@ -1,12 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { InteractionManager, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -106,14 +99,23 @@ export default function WorkspaceHome() {
     useCallback(() => {
       load();
       loadTrash();
-      // keep the local intelligence index fresh (incremental, non-blocking)
-      Intelligence.ensureIndex();
+      const task = InteractionManager.runAfterInteractions(() => {
+        void Intelligence.ensureIndex().catch((error) => {
+          console.warn("[workspace] index refresh failed", error);
+        });
+      });
+      return () => task.cancel();
     }, [load, loadTrash, dataVersion]),
   );
 
-  // ensure index once on first mount
+  // ensure index once on first mount, after the first interaction frame
   useEffect(() => {
-    Intelligence.ensureIndex();
+    const task = InteractionManager.runAfterInteractions(() => {
+      void Intelligence.ensureIndex().catch((error) => {
+        console.warn("[workspace] initial index failed", error);
+      });
+    });
+    return () => task.cancel();
   }, []);
 
   const runSearch = useCallback(async (q: string) => {
