@@ -127,7 +127,7 @@ backend:
         -comment: "Added POST /api/shared (returns token, manage_token, public url), GET /api/shared/{token} (renders branded read-only HTML), DELETE /api/shared/{token}?key=manage_token (revoke). Stored in Mongo shared_pages. Also recreated missing backend/.env (MONGO_URL, DB_NAME) and frontend/.env (proxy + EXPO_PUBLIC_BACKEND_URL) which were absent and crashing backend. Verified via curl: create->200 w/ url, GET->branded HTML, revoke->200, GET after revoke->404."
         -working: true
         -agent: "testing"
-        -comment: "COMPREHENSIVE BACKEND TESTING COMPLETED - ALL 9 TESTS PASS ✅. Created backend_test.py and tested all scenarios: (1) GET /api/ sanity check returns Hello World ✅, (2) POST /api/shared with test data returns token/manage_token/url ✅, (3) GET /api/shared/{token} returns HTML with title 'Test Note', branding 'Made with Notes AI', and rendered bullet content ✅, (4) DELETE /api/shared/{token}?key={manage_token} revokes link successfully ✅, (5) GET /api/shared/{token} after revoke returns 404 with unavailable message ✅, (6a) DELETE with wrong key returns 403 ✅, (6b) DELETE non-existent token returns 404 ✅, (6c) POST with empty body {} creates usable link with default title 'Shared note' ✅, (7) MongoDB persistence verified - documents stored and retrieved correctly ✅. Backend is production-ready. External URL tested: https://app-runner-135.preview.emergentagent.com/api"
+        -comment: "COMPREHENSIVE BACKEND TESTING COMPLETED - ALL 9 TESTS PASS ✅. Created backend_test.py and tested all scenarios: (1) GET /api/ sanity check returns Hello World ✅, (2) POST /api/shared with test data returns token/manage_token/url ✅, (3) GET /api/shared/{token} returns HTML with title 'Test Note', branding 'Made with Notes AI', and rendered bullet content ✅, (4) DELETE /api/shared/{token}?key={manage_token} revokes link successfully ✅, (5) GET /api/shared/{token} after revoke returns 404 with unavailable message ✅, (6a) DELETE with wrong key returns 403 ✅, (6b) DELETE non-existent token returns 404 ✅, (6c) POST with empty body {} creates usable link with default title 'Shared note' ✅, (7) MongoDB persistence verified - documents stored and retrieved correctly ✅. Backend is production-ready. External URL tested: https://app-runner-140.preview.emergentagent.com/api"
 
 frontend:
   - task: "M-A: LocalIntelligenceEngine core + Smart Search + Ask My Notes (offline, model-free)"
@@ -676,7 +676,7 @@ agent_communication:
       8. ✅ POST with empty body {} - creates usable link with default title "Shared note"
       9. ✅ MongoDB persistence - documents stored and retrieved correctly
       
-      External URL tested: https://app-runner-135.preview.emergentagent.com/api
+      External URL tested: https://app-runner-140.preview.emergentagent.com/api
       
       Backend is production-ready. This is the ONLY backend feature in Phase 2 (rest of app is 100% offline/local).
       
@@ -999,3 +999,68 @@ agent_communication:
       ✅ App is stable with no crashes or white screens
       ✅ All major navigation paths are accessible
       ✅ Intelligence layer is functional (just needs indexing time for results)
+
+- agent: "main"
+  message: "Run-only verification: read existing project state; no application files changed. Supervisor services backend, expo, mongodb, and proxy are running. Restarted expo successfully (pid 552), http://127.0.0.1:3000 returned 200, Notes AI page loaded with Workspace launch screen and no visible crash. Screenshot captured. Frontend smoke verification requested for app launch/navigation only."
+- agent: "testing"
+  message: |
+    ✅ LIGHTWEIGHT SMOKE TEST COMPLETE - APP IS RUNNING CORRECTLY
+    
+    Performed lightweight smoke test of Expo mobile app preview at http://127.0.0.1:3000 as requested.
+    This was a run verification only, not a full regression test. No code or data modifications made.
+    
+    **SMOKE TEST RESULTS - ALL PASS ✅**
+    
+    1. ✅ Notes AI page loads without white screen or crash
+       - App loaded successfully with visible content
+       - No white screens detected
+       - No runtime crashes
+    
+    2. ✅ Workspace launch screen is visible
+       - Workspace header present
+       - Search box visible
+       - "No pages yet" message displayed (expected for empty state)
+    
+    3. ✅ Workspace AI tool cards rendered (6/6)
+       - Ask My Notes ✅
+       - Smart Search ✅
+       - Knowledge Graph ✅
+       - Collections ✅
+       - Study ✅
+       - Insights ✅
+    
+    4. ✅ Top navigation icons rendered (5/5 + FAB)
+       - open-notes ✅
+       - workspace-templates ✅
+       - workspace-calendar ✅
+       - workspace-trash ✅
+       - open-settings ✅
+       - workspace-new (FAB) ✅
+    
+    5. ✅ Notes icon navigation works
+       - Tapping open-notes icon successfully opens Notes screen
+       - Notes screen loads correctly with header, search, filter chips, and FAB
+       - Back navigation works (found back button with [data-testid*="back"])
+       - Successfully returned to Workspace screen
+    
+    6. ✅ Smart Search card opens
+       - Smart Search card successfully clicked
+       - Screen navigation occurred (Smart Search screen opened)
+    
+    7. ✅ No console errors or runtime errors detected
+       - Zero console errors logged
+       - Zero warnings logged
+       - App is stable
+    
+    **CONCLUSION:**
+    The Expo mobile app is running correctly at http://127.0.0.1:3000. All requested smoke test verifications passed:
+    - App loads without crashes or white screens
+    - Workspace launch screen is visible with all UI elements
+    - All 6 AI tool cards are rendered
+    - All 5 top navigation icons + FAB are present
+    - Notes navigation works bidirectionally
+    - Smart Search card opens successfully
+    - No console or runtime errors detected
+    
+    The app is in a healthy running state. This was a lightweight verification only - no full regression testing performed.
+
