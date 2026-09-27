@@ -36,6 +36,14 @@ import { VoiceRecorderSheet } from "@/src/components/VoiceRecorderSheet";
 import { AudioPlayer } from "@/src/components/AudioPlayer";
 import { MarkdownText } from "@/src/components/MarkdownText";
 import { parseMarkdown } from "@/src/lib/markdown";
+import {
+  EditorState,
+  markdownFromEditorState,
+  remapRichState,
+  richFromMarkdown,
+  toggleBlockStyle,
+  toggleInlineStyle,
+} from "@/src/lib/rich-editor";
 import { noteColorHex } from "@/src/theme/colors";
 import {
   addAttachment,
@@ -97,6 +105,8 @@ export default function Editor() {
   const [loaded, setLoaded] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [editorState, setEditorState] = useState<EditorState>({ text: "", spans: [] });
+  const [formatWarning, setFormatWarning] = useState<string | null>(null);
   const [type, setType] = useState<NoteType>("text");
   const [color, setColor] = useState("default");
   const [isPinned, setIsPinned] = useState(0);
@@ -111,6 +121,8 @@ export default function Editor() {
   const selection = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const past = useRef<string[]>([]);
   const future = useRef<string[]>([]);
+  const contentRef = useRef("");
+  const editorStateRef = useRef<EditorState>({ text: "", spans: [] });
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
@@ -127,16 +139,17 @@ export default function Editor() {
   const [previewMode, setPreviewMode] = useState(false);
   const shareCardRef = useRef<View>(null);
 
-  // `content` is the SINGLE SOURCE OF TRUTH: the raw Markdown the user typed and
-  // the ONLY value persisted to storage. `parsedPreview` is a derived, read-only
-  // representation for Preview mode and must NEVER be written back to `content`.
+  // `content` is the persisted Markdown-compatible source. `editorState.text`
+  // is the visible, markup-free editing buffer; `editorState.spans` carries
+  // inline styles. Formatting actions rebuild `content` from state, never the
+  // reverse. Existing notes are migrated on load only in memory.
   const parsedPreview = useMemo(() => parseMarkdown(content), [content]);
 
   const noteIdRef = useRef<string | null>(null);
   const titleRef = useRef("");
-  const contentRef = useRef("");
   useEffect(() => { titleRef.current = title; }, [title]);
   useEffect(() => { contentRef.current = content; }, [content]);
+  useEffect(() => { editorStateRef.current = editorState; }, [editorState]);
 
   // Initialize note (load existing or create new).
   useEffect(() => {
@@ -148,6 +161,9 @@ export default function Editor() {
           noteIdRef.current = n.id;
           setTitle(n.title);
           setContent(n.content);
+          const loadedState = richFromMarkdown(n.content);
+          setEditorState(loadedState);
+          setFormatWarning(loadedState.error ?? null);
           setType(n.type);
           setColor(n.color);
           setIsPinned(n.isPinned);
@@ -250,19 +266,38 @@ export default function Editor() {
     toast.show(v ? "Note archived" : "Note unarchived", "success");
   };
 
+  const commitEditorState = useCallback((next: EditorState) => {
+    setEditorState(next);
+    setFormatWarning(next.error ?? null);
+    const nextContent = markdownFromEditorState(next);
+    const previousContent = contentRef.current;
+    if (nextContent !== previousContent) {
+      past.current.push(previousContent);
+      if (past.current.length > 100) past.current.shift();
+      future.current = [];
+      setCanUndo(true);
+      setCanRedo(false);
+      setContent(nextContent);
+    }
+  }, []);
+
   const onChangeBody = (t: string) => {
-    past.current.push(content);
-    if (past.current.length > 100) past.current.shift();
-    future.current = [];
-    setCanUndo(true);
-    setCanRedo(false);
-    setContent(t);
+    const next = remapRichState(editorStateRef.current, t, selection.current);
+    commitEditorState(next);
   };
+
+  const restoreContent = (next: string) => {
+    setContent(next);
+    const nextState = richFromMarkdown(next);
+    setEditorState(nextState);
+    setFormatWarning(nextState.error ?? null);
+  };
+
   const undo = () => {
     if (!past.current.length) return;
     future.current.push(content);
     const prev = past.current.pop()!;
-    setContent(prev);
+    restoreContent(prev);
     setCanUndo(past.current.length > 0);
     setCanRedo(true);
   };
@@ -270,25 +305,37 @@ export default function Editor() {
     if (!future.current.length) return;
     past.current.push(content);
     const next = future.current.pop()!;
-    setContent(next);
+    restoreContent(next);
     setCanRedo(future.current.length > 0);
     setCanUndo(true);
   };
 
-  const wrapSelection = (prefix: string, suffix: string) => {
-    const { start, end } = selection.current;
-    const s = Math.max(0, start);
-    const e = Math.max(s, end);
-    const sel = content.slice(s, e) || "text";
-    const next = content.slice(0, s) + prefix + sel + suffix + content.slice(e);
-    onChangeBody(next);
+  const applyInlineFormat = (key: "bold" | "italic" | "underline" | "strike" | "highlight") => {
+    try {
+      const next = toggleInlineStyle(editorState, selection.current, key);
+      if (next.error) {
+        toast.show("Couldn't apply formatting. Your note is unchanged.", "error");
+        return;
+      }
+      commitEditorState(next);
+    } catch (error) {
+      console.warn("[Editor] inline formatting failed", error);
+      toast.show("Formatting couldn't be applied. Your note is unchanged.", "error");
+    }
   };
-  const prefixLine = (prefix: string) => {
-    const { start } = selection.current;
-    const before = content.slice(0, start);
-    const lineStart = before.lastIndexOf("\n") + 1;
-    const next = content.slice(0, lineStart) + prefix + content.slice(lineStart);
-    onChangeBody(next);
+
+  const applyBlockFormat = (key: "heading" | "bullet" | "ordered" | "quote") => {
+    try {
+      const next = toggleBlockStyle(editorState, selection.current, key);
+      if (next.error) {
+        toast.show("Couldn't apply formatting. Your note is unchanged.", "error");
+        return;
+      }
+      commitEditorState(next);
+    } catch (error) {
+      console.warn("[Editor] block formatting failed", error);
+      toast.show("Formatting couldn't be applied. Your note is unchanged.", "error");
+    }
   };
 
   // Checklist ops
@@ -322,7 +369,7 @@ export default function Editor() {
   const convertToChecklist = async () => {
     if (!noteId) return;
     setMenuVisible(false);
-    const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
+    const lines = editorState.text.split("\n").map((l) => l.trim()).filter(Boolean);
     const existing = await getChecklist(noteId);
     for (const e of existing) await deleteChecklistItem(e.id);
     const created: ChecklistItem[] = [];
@@ -332,7 +379,7 @@ export default function Editor() {
       created.push(await addChecklistItem(noteId, cleaned, pos++));
     }
     setItems(created);
-    setContent("");
+    restoreContent("");
     setType("checklist");
     patch({ type: "checklist", content: "" });
   };
@@ -342,7 +389,7 @@ export default function Editor() {
     const text = items.map((i) => `${i.isCompleted ? "☑" : "☐"} ${i.text}`).join("\n");
     for (const i of items) await deleteChecklistItem(i.id);
     setItems([]);
-    setContent((prev) => (prev ? prev + "\n" + text : text));
+    restoreContent(editorState.text ? editorState.text + "\n" + text : text);
     setType("text");
     patch({ type: "text", content: content ? content + "\n" + text : text });
   };
@@ -618,9 +665,23 @@ export default function Editor() {
             )}
           </Pressable>
         ) : (
-          <TextInput
+          <View>
+            {formatWarning ? (
+              <Pressable
+                testID="editor-format-warning"
+                onPress={() => {
+                  restoreContent(content);
+                  setFormatWarning(null);
+                }}
+                style={[styles.formatWarning, { borderColor: c.warning, backgroundColor: c.brandTertiary }]}
+              >
+                <MaterialCommunityIcons name="alert-circle-outline" size={17} color={c.warning} />
+                <Text style={[styles.formatWarningText, { color: c.onSurface }]}>Formatting preview recovered safely. Tap to refresh the editor.</Text>
+              </Pressable>
+            ) : null}
+            <TextInput
             testID="editor-body"
-            value={content}
+            value={editorState.text}
             onChangeText={onChangeBody}
             onSelectionChange={(e) => (selection.current = e.nativeEvent.selection)}
             placeholder="Start writing..."
@@ -629,6 +690,7 @@ export default function Editor() {
             multiline
             textAlignVertical="top"
           />
+          </View>
         )}
 
         {/* Attachments */}
@@ -679,14 +741,14 @@ export default function Editor() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarRow} keyboardShouldPersistTaps="handled">
             {type !== "checklist" && (
               <>
-                <ToolBtn icon="format-bold" onPress={() => wrapSelection("**", "**")} c={c} tid="fmt-bold" />
-                <ToolBtn icon="format-italic" onPress={() => wrapSelection("*", "*")} c={c} tid="fmt-italic" />
-                <ToolBtn icon="format-underline" onPress={() => wrapSelection("<u>", "</u>")} c={c} tid="fmt-underline" />
-                <ToolBtn icon="format-strikethrough" onPress={() => wrapSelection("~~", "~~")} c={c} tid="fmt-strike" />
-                <ToolBtn icon="format-header-pound" onPress={() => prefixLine("# ")} c={c} tid="fmt-heading" />
-                <ToolBtn icon="format-list-bulleted" onPress={() => prefixLine("- ")} c={c} tid="fmt-bullet" />
-                <ToolBtn icon="format-list-numbered" onPress={() => prefixLine("1. ")} c={c} tid="fmt-number" />
-                <ToolBtn icon="marker" onPress={() => wrapSelection("==", "==")} c={c} tid="fmt-highlight" />
+                <ToolBtn icon="format-bold" onPress={() => applyInlineFormat("bold")} c={c} tid="fmt-bold" />
+                <ToolBtn icon="format-italic" onPress={() => applyInlineFormat("italic")} c={c} tid="fmt-italic" />
+                <ToolBtn icon="format-underline" onPress={() => applyInlineFormat("underline")} c={c} tid="fmt-underline" />
+                <ToolBtn icon="format-strikethrough" onPress={() => applyInlineFormat("strike")} c={c} tid="fmt-strike" />
+                <ToolBtn icon="format-header-pound" onPress={() => applyBlockFormat("heading")} c={c} tid="fmt-heading" />
+                <ToolBtn icon="format-list-bulleted" onPress={() => applyBlockFormat("bullet")} c={c} tid="fmt-bullet" />
+                <ToolBtn icon="format-list-numbered" onPress={() => applyBlockFormat("ordered")} c={c} tid="fmt-number" />
+                <ToolBtn icon="marker" onPress={() => applyInlineFormat("highlight")} c={c} tid="fmt-highlight" />
                 <View style={[styles.toolDivider, { backgroundColor: c.border }]} />
               </>
             )}
@@ -882,6 +944,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "800", padding: 0, marginBottom: 4 },
   meta: { fontSize: 12, marginBottom: 16 },
   body: { fontSize: 16, lineHeight: 24, padding: 0, minHeight: 200 },
+  formatWarning: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 10, marginBottom: 10 },
+  formatWarningText: { flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 18 },
   previewWrap: { minHeight: 200, paddingVertical: 2 },
   checklist: { marginTop: 4 },
   progressTrack: { height: 4, borderRadius: 2, overflow: "hidden", marginBottom: 16 },
