@@ -387,6 +387,19 @@ test_plan:
 agent_communication:
     -agent: "main"
     -message: |
+      ANDROID BUILD FAILURE FIX (EAS build readiness). Root cause: package-manager mismatch —
+      package.json declared packageManager=yarn@1.22.22 + yarn-only `resolutions`, but the repo
+      contained an npm package-lock.json and NO yarn.lock, so EAS install step failed (yarn with
+      frozen/missing lockfile). Fix: removed stale packageManager field + dead resolutions from
+      frontend/package.json, generated a fresh yarn.lock (single lockfile, PRESERVED - do not
+      delete before build), removed conflicting package-lock.json. Verified: yarn install
+      --frozen-lockfile passes (exact EAS install step); expo-doctor 20/20; production Android
+      bundle compiles (expo export --platform android, 2406 modules, 4.2MB). NOTE: local
+      hermesc bytecode step fails only because this container is aarch64 and hermesc ships an
+      x86-64 binary - EAS x86_64 builders are unaffected. Preview verified healthy after
+      reinstall. Project is ready for Publish -> Generate Android build (APK/AAB).
+    -agent: "main"
+    -message: |
       KEYBOARD ROOT-CAUSE FIX (round 2, after troubleshoot_agent RCA). Real cause of Android editor
       jumping/flicker/hidden-content/focus-loss = CONFIG conflict: with Expo edge-to-edge, Android
       defaulted to adjustPan which fights react-native-keyboard-controller's JS inset handling. Changes:
