@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -79,7 +79,7 @@ export default function Templates() {
       <View style={styles.searchWrap}>
         <View style={[styles.searchBar, { backgroundColor: c.surfaceTertiary, borderColor: c.border }]}>
           <MaterialCommunityIcons name="magnify" size={20} color={c.muted} />
-          <TextInput testID="tpl-search" value={query} onChangeText={setQuery} placeholder="Search 60 templates" placeholderTextColor={c.muted} style={[styles.searchInput, { color: c.onSurface }]} />
+          <TextInput testID="tpl-search" value={query} onChangeText={setQuery} placeholder={`Search ${TEMPLATES.length} templates`} placeholderTextColor={c.muted} style={[styles.searchInput, { color: c.onSurface }]} />
         </View>
       </View>
       <View style={{ maxHeight: 44 }}>
@@ -99,20 +99,38 @@ export default function Templates() {
         </ScrollView>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
-        {recentTpls.length > 0 && cat === "All" && !query && !favOnly && (
-          <>
-            <Text style={[styles.section, { color: c.muted }]}>RECENTLY USED</Text>
-            {recentTpls.map((t) => (
-              <TemplateCard key={`r-${t.id}`} t={t} c={c} fav={favorites.includes(t.id)} onOpen={() => setPreview(t)} onFav={() => toggleFav(t.id)} />
-            ))}
-            <Text style={[styles.section, { color: c.muted, marginTop: 8 }]}>ALL TEMPLATES</Text>
-          </>
+      <FlatList
+        style={{ flex: 1 }}
+        data={list}
+        keyExtractor={(t) => t.id}
+        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={12}
+        maxToRenderPerBatch={16}
+        windowSize={11}
+        removeClippedSubviews
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          recentTpls.length > 0 && cat === "All" && !query && !favOnly ? (
+            <>
+              <Text style={[styles.section, { color: c.muted }]}>RECENTLY USED</Text>
+              {recentTpls.map((t) => (
+                <TemplateCard key={`r-${t.id}`} t={t} c={c} fav={favorites.includes(t.id)} onOpen={() => setPreview(t)} onFav={() => toggleFav(t.id)} />
+              ))}
+              <Text style={[styles.section, { color: c.muted, marginTop: 8 }]}>ALL TEMPLATES</Text>
+            </>
+          ) : null
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <MaterialCommunityIcons name="file-search-outline" size={40} color={c.muted} />
+            <Text style={[styles.emptyText, { color: c.muted }]}>No templates match your search.</Text>
+          </View>
+        }
+        renderItem={({ item: t }) => (
+          <TemplateCard t={t} c={c} fav={favorites.includes(t.id)} onOpen={() => setPreview(t)} onFav={() => toggleFav(t.id)} />
         )}
-        {list.map((t) => (
-          <TemplateCard key={t.id} t={t} c={c} fav={favorites.includes(t.id)} onOpen={() => setPreview(t)} onFav={() => toggleFav(t.id)} />
-        ))}
-      </ScrollView>
+      />
 
       <BottomSheet visible={!!preview} onClose={() => setPreview(null)} title={preview ? `${preview.icon}  ${preview.name}` : ""} testID="tpl-preview">
         {preview && (
@@ -182,4 +200,6 @@ const styles = StyleSheet.create({
   dbTitle: { fontSize: 14, fontWeight: "700", marginBottom: 4 },
   useBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 50, borderRadius: 14, marginTop: 18 },
   useText: { fontSize: 15, fontWeight: "700" },
+  empty: { alignItems: "center", justifyContent: "center", paddingTop: 60, gap: 10 },
+  emptyText: { fontSize: 14, fontWeight: "500" },
 });

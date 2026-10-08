@@ -134,6 +134,7 @@ export default function DatabaseScreen() {
       <View style={styles.top}>
         <Pressable testID="db-back" onPress={() => router.back()} style={styles.iconBtn} hitSlop={8}><MaterialCommunityIcons name="chevron-left" size={28} color={c.onSurface} /></Pressable>
         <Text style={[styles.heading, { color: c.onSurface }]} numberOfLines={1}>{db?.icon} {db?.title ?? "Database"}</Text>
+        <Pressable testID="db-ai-agent" onPress={() => router.push({ pathname: "/agent", params: { databaseId: params.id, databaseTitle: db?.title ?? "", screen: "database" } })} style={styles.iconBtn} hitSlop={8}><MaterialCommunityIcons name="robot-happy-outline" size={22} color={c.brand} /></Pressable>
         <Pressable testID="db-add-prop" onPress={() => setAddPropOpen(true)} style={styles.iconBtn} hitSlop={8}><MaterialCommunityIcons name="table-column-plus-after" size={22} color={c.onSurface} /></Pressable>
       </View>
 

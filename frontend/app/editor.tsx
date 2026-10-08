@@ -571,6 +571,12 @@ export default function Editor() {
               />
             </Pressable>
           )}
+          <Pressable testID="editor-ai-agent" onPress={() => {
+            const id = noteIdRef.current;
+            if (id) router.push({ pathname: "/agent", params: { noteId: id, noteTitle: titleRef.current || "", screen: "note" } });
+          }} style={styles.hBtn}>
+            <MaterialCommunityIcons name="robot-happy-outline" size={22} color={c.brand} />
+          </Pressable>
           <Pressable testID="editor-menu" onPress={() => setMenuVisible(true)} style={styles.hBtn}>
             <MaterialCommunityIcons name="dots-vertical" size={22} color={c.onSurface} />
           </Pressable>

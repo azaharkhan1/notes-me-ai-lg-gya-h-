@@ -55,6 +55,74 @@ class SharePageOut(BaseModel):
     url: str
 
 
+class AgentPlanRequest(BaseModel):
+    command: str
+    context: dict = {}
+
+
+AGENT_TOOLS = [
+    "createNote(title, content?)",
+    "appendToNote(noteId, content)  # noteId can be $context.noteId or $lastNoteId",
+    "renameNote(noteId, title)",
+    "updateNote(noteId, content)",
+    "searchNotes(query)",
+    "summarizeNote(noteId)  # appends an AI summary to the note",
+    "extractTasksFromNote(noteId, databaseId?)  # creates tasks (and DB records if databaseId)",
+    "createWorkspace(name)  # a top-level page acting as a workspace; sets $lastPageId",
+    "createPage(title, parentPageId?)  # sets $lastPageId",
+    "createDatabase(name, parentPageId?, properties?)  # properties: [{name,type,options?}]; sets $lastDatabaseId",
+    "addRecord(databaseId, values)  # values is an object of propertyName->value",
+    "createTask(title, priority?, dueDate?)",
+    "updateTaskStatus(query, status)  # status: todo|in progress|done|archived",
+    "listTasks(priority?, status?)",
+    "useTemplate(query)  # searches the 999-template library and installs the best match",
+    "mergeNotes(query)  # DESTRUCTIVE: merges matching notes into one",
+    "trashNote(noteId)  # DESTRUCTIVE",
+]
+
+AGENT_SYSTEM = (
+    "You are the RF Notes Action Planner. Convert the user's natural-language command "
+    "into a strict JSON execution plan that the app runs locally against the user's offline data.\n"
+    "Return ONLY valid JSON with this shape:\n"
+    '{"reply": "<short human summary of what you will do>", '
+    '"steps": [{"tool": "<toolName>", "args": {<named args>}, "description": "<one line>"}]}\n\n'
+    "Available tools (use these names EXACTLY):\n- " + "\n- ".join(AGENT_TOOLS) + "\n\n"
+    "Rules:\n"
+    "- Use placeholders to reference items created earlier in the SAME plan: $lastNoteId, $lastPageId, $lastDatabaseId.\n"
+    "- Use $context.noteId / $context.pageId / $context.databaseId to refer to the item the user is currently viewing.\n"
+    "- Break compound commands into ordered steps and respect dependencies (create a database before adding records to it).\n"
+    "- For property types use one of: title, text, number, select, date, checkbox, multiselect.\n"
+    "- mergeNotes and trashNote are destructive; still include them — the app asks the user to confirm.\n"
+    "- If the command is unclear or impossible with these tools, return an empty steps array and explain in reply.\n"
+    "- Never invent tools. Never output prose outside the JSON."
+)
+
+
+def _parse_plan_json(text: str) -> dict:
+    import json, re
+    t = (text or "").strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z]*\n?", "", t).rstrip("`").rstrip()
+        if t.endswith("```"):
+            t = t[:-3]
+    # grab the outermost JSON object
+    start = t.find("{")
+    end = t.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        t = t[start:end + 1]
+    data = json.loads(t)
+    steps = data.get("steps") or []
+    clean_steps = []
+    for s in steps:
+        if isinstance(s, dict) and s.get("tool"):
+            clean_steps.append({
+                "tool": str(s.get("tool")),
+                "args": s.get("args") or {},
+                "description": str(s.get("description") or ""),
+            })
+    return {"reply": str(data.get("reply") or ""), "steps": clean_steps}
+
+
 # Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
@@ -172,6 +240,35 @@ async def revoke_shared(token: str, key: str = Query(...)):
         raise HTTPException(status_code=403, detail="Invalid manage key")
     await db.shared_pages.update_one({"token": token}, {"$set": {"revoked": True}})
     return {"revoked": True, "token": token}
+
+
+@api_router.post("/agent/plan")
+async def agent_plan(req: AgentPlanRequest):
+    """LLM planner: turns a natural-language command into a JSON tool-call plan.
+    All mutations are executed locally on-device by the app through its controlled
+    tool registry — this endpoint only reasons and plans."""
+    command = (req.command or "").strip()
+    if not command:
+        raise HTTPException(status_code=400, detail="command is required")
+    key = os.environ.get("EMERGENT_LLM_KEY", "")
+    if not key:
+        return JSONResponse({"reply": "", "steps": [], "error": "llm_unavailable"}, status_code=503)
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        import json as _json
+        ctx_str = _json.dumps(req.context or {}, ensure_ascii=False)[:4000]
+        chat = LlmChat(
+            api_key=key,
+            session_id=f"agent-{uuid.uuid4().hex[:12]}",
+            system_message=AGENT_SYSTEM,
+        ).with_model("openai", "gpt-5.4")
+        user = UserMessage(text=f"Current context: {ctx_str}\n\nCommand: {command}")
+        raw = await chat.send_message(user)
+        plan = _parse_plan_json(raw if isinstance(raw, str) else str(raw))
+        return JSONResponse(plan)
+    except Exception as e:
+        logging.getLogger(__name__).exception("agent_plan failed")
+        return JSONResponse({"reply": "", "steps": [], "error": f"plan_failed: {e}"}, status_code=502)
 
 
 # Include the router in the main app

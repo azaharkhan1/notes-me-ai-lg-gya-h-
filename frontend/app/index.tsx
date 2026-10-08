@@ -52,6 +52,7 @@ const AI_TOOLS: {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   route: string;
 }[] = [
+  { key: "agent", label: "AI Agent", icon: "robot-happy-outline", route: "/agent" },
   { key: "ask", label: "Ask My Notes", icon: "message-question-outline", route: "/ask" },
   { key: "search", label: "Smart Search", icon: "text-search", route: "/smart-search" },
   { key: "graph", label: "Knowledge Graph", icon: "graph-outline", route: "/graph" },

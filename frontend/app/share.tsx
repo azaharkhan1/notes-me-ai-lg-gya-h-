@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -155,6 +155,11 @@ export default function ShareScreen() {
           <MaterialCommunityIcons name="shield-check-outline" size={15} color={c.muted} />
           <Text style={[styles.legalText, { color: c.muted }]}>Privacy Policy & Terms</Text>
         </Pressable>
+
+        <View testID="share-footer" style={styles.footer}>
+          <Image source={require("@/assets/images/icon.png")} style={styles.footerLogo} />
+          <Text style={[styles.footerText, { color: c.muted }]}>{BRANDING}</Text>
+        </View>
       </ScrollView>
 
       {/* Off-screen branded card for image capture */}
@@ -204,6 +209,9 @@ const styles = StyleSheet.create({
   linkBtnText: { fontSize: 13, fontWeight: "700" },
   legalLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 24, paddingVertical: 10 },
   legalText: { fontSize: 12.5, fontWeight: "600" },
+  footer: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginTop: 8, paddingVertical: 10 },
+  footerLogo: { width: 18, height: 18, borderRadius: 4 },
+  footerText: { fontSize: 12.5, fontWeight: "700" },
   captureHost: { position: "absolute", left: -9999, top: 0, width: 600 },
   card: { width: 600, padding: 44, backgroundColor: "#faf9f7" },
   cardBadge: { alignSelf: "flex-start", backgroundColor: "#fff1e7", borderColor: "#fed7aa", borderWidth: 1, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
